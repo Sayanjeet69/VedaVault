@@ -1,0 +1,12 @@
+# Canonical registry of textual sources approved for VedaVault ingestion.
+version: 1
+sources:
+  - id: bhagavad-gita-example
+    title: Bhagavad Gita
+    tradition: Hindu
+    language: Sanskrit
+    source_url: "TODO: provide a verified source URL"
+    license: "TODO: verify the source license"
+    content_path: "TODO: Data/Raw/bhagavad-gita/"
+    format: text
+    status: example
