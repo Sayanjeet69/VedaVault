@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Local research datasets
+Data/Raw/
+
+# Local environments
+.venv/
+venv/
+.env
+
+# IDE
+.vscode/
