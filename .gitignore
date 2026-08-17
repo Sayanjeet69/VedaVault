@@ -6,6 +6,9 @@ __pycache__/
 # Local research datasets
 Data/Raw/
 
+# Generated local semantic retrieval indexes
+Data/Processed/*/retrieval_index/
+
 # Local environments
 .venv/
 venv/

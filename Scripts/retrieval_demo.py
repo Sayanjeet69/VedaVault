@@ -23,7 +23,8 @@ QUERIES = (
 def main() -> int:
     if not INDEX_DIRECTORY.is_dir():
         raise SystemExit("Index not found. Run: python Scripts/build_bhagavad_gita_index.py")
-    retriever = Retriever(SentenceTransformerEmbeddingProvider(), LocalVectorStore.load(INDEX_DIRECTORY))
+    provider = SentenceTransformerEmbeddingProvider()
+    retriever = Retriever(provider, LocalVectorStore.load(INDEX_DIRECTORY, embedding_provider=provider))
     for query in QUERIES:
         print(f"\nQuery: {query}")
         for result in retriever.retrieve(query, limit=3):
