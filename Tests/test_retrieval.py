@@ -178,7 +178,7 @@ class RetrievalTests(unittest.TestCase):
         questions = load_evaluation_questions(ROOT / "Evaluation" / "bhagavad_gita_retrieval.json")
         corpus = json.loads((ROOT / "Data" / "Processed" / "Bhagavad_Gita" / "corpus.json").read_text(encoding="utf-8"))
         canonical_ids = {passage["passage_id"] for passage in corpus["passages"]}
-        self.assertEqual(len(questions), 10)
+        self.assertEqual(len(questions), 50)
         self.assertTrue(all(question.expected_passage_ids <= canonical_ids for question in questions))
 
     def test_empty_invalid_queries(self) -> None:

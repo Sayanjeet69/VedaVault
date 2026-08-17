@@ -65,7 +65,7 @@ def main() -> int:
             else raw_results[: args.k]
         )
         metrics = evaluate_results(question, results, args.k)
-        raw_metrics = evaluate_results(question, raw_results[: args.k], args.k)
+        raw_metrics = evaluate_results(question, raw_results, args.k)
         all_metrics.append(metrics)
         raw_metrics_all.append(raw_metrics)
         repeated_layers: dict[str, list[str]] = defaultdict(list)
@@ -78,9 +78,11 @@ def main() -> int:
         )
 
         print(f"\nQuestion: {question.question}")
-        print(f"Recall@{args.k}: {metrics.recall_at_k:.3f}")
-        print(f"Precision@{args.k}: {metrics.precision_at_k:.3f}")
-        print(f"MRR: {metrics.reciprocal_rank:.3f}")
+        print(f"Primary Recall@{args.k}: {metrics.primary_recall_at_k:.3f}")
+        print(f"Acceptable Recall@{args.k}: {metrics.acceptable_recall_at_k:.3f}")
+        print(f"Acceptable Precision@{args.k}: {metrics.acceptable_precision_at_k:.3f}")
+        print(f"Primary MRR: {metrics.primary_reciprocal_rank:.3f}")
+        print(f"Acceptable MRR: {metrics.acceptable_reciprocal_rank:.3f}")
         print(
             "Duplicates: "
             f"{metrics.repeated_passage_count}/{len(results)} final "
@@ -88,7 +90,8 @@ def main() -> int:
         )
         print(f"Diversity: {metrics.unique_passage_count} unique verses across {metrics.chapter_count} chapters")
         print(f"Raw repeated verse/layers: {repeated_summary or 'none'}")
-        print(f"Expected present: {', '.join(sorted(metrics.expected_found)) or 'none'}")
+        print(f"Primary present: {', '.join(sorted(metrics.primary_found)) or 'none'}")
+        print(f"Acceptable-only present: {', '.join(sorted(metrics.acceptable_only_found)) or 'none'}")
         print("Retrieved:")
         for result in results:
             metadata = result.document.metadata
@@ -96,14 +99,17 @@ def main() -> int:
                 f"  {metadata['passage_id']} ({metadata['chapter']}:{metadata['verse']}) "
                 f"layer={metadata['text_layer']} score={result.score:.4f}"
             )
-        print(f"Expected: {', '.join(sorted(question.expected_passage_ids))}")
+        print(f"Primary: {', '.join(sorted(question.primary_passage_ids))}")
+        print(f"Acceptable: {', '.join(sorted(question.acceptable_passage_ids))}")
 
     count = len(all_metrics)
     print("\n=== Aggregate ===")
     print(f"Questions: {count}; mode: {'deduplicated by verse' if args.deduplicate_by_verse else 'raw ranked layers'}")
-    print(f"Mean Recall@{args.k}: {sum(metric.recall_at_k for metric in all_metrics) / count:.3f}")
-    print(f"Mean Precision@{args.k}: {sum(metric.precision_at_k for metric in all_metrics) / count:.3f}")
-    print(f"Mean MRR: {sum(metric.reciprocal_rank for metric in all_metrics) / count:.3f}")
+    print(f"Mean Primary Recall@{args.k}: {sum(metric.primary_recall_at_k for metric in all_metrics) / count:.3f}")
+    print(f"Mean Acceptable Recall@{args.k}: {sum(metric.acceptable_recall_at_k for metric in all_metrics) / count:.3f}")
+    print(f"Mean Acceptable Precision@{args.k}: {sum(metric.acceptable_precision_at_k for metric in all_metrics) / count:.3f}")
+    print(f"Mean Primary MRR: {sum(metric.primary_reciprocal_rank for metric in all_metrics) / count:.3f}")
+    print(f"Mean Acceptable MRR: {sum(metric.acceptable_reciprocal_rank for metric in all_metrics) / count:.3f}")
     print(f"Mean duplicate-result rate: {sum(metric.duplicate_result_rate for metric in all_metrics) / count:.1%}")
     print(f"Mean raw top-{args.k} duplicate-result rate: {sum(metric.duplicate_result_rate for metric in raw_metrics_all) / count:.1%}")
     return 0

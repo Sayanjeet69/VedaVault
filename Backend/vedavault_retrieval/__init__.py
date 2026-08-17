@@ -17,15 +17,34 @@ from .filters import MetadataFilter
 from .grounding import GROUNDING_INSTRUCTIONS, GroundingContext
 from .language import SUPPORTED_LANGUAGES, LanguagePolicy, SupportedLanguage, WritingScript
 from .llm import GenerationRequest, LLMProvider, LLMProviderError
-from .evaluation import EvaluationQuestion, RetrievalEvaluation, evaluate_results, load_evaluation_questions
+from .evaluation import (
+    BENCHMARK_VERSION,
+    BREAKDOWN_DIMENSIONS,
+    CATEGORIES,
+    DIFFICULTY_TAGS,
+    AggregateRetrievalEvaluation,
+    EvaluationQuestion,
+    RetrievalBenchmark,
+    RetrievalEvaluation,
+    aggregate_evaluations,
+    evaluate_results,
+    load_evaluation_questions,
+    load_retrieval_benchmark,
+    validate_benchmark_corpus_references,
+)
 from .retrieval import RetrievalResult, Retriever, deduplicate_by_passage
 from .vector_store import IndexCompatibilityError, IndexManifest, IndexManifestError, LocalVectorStore, VectorStore
 
 __all__ = [
     "E5_PROMPT_PROFILE",
     "ANSWER_CONTRACT_RULES",
+    "AggregateRetrievalEvaluation",
     "AnswerContract",
     "AnswerMode",
+    "BENCHMARK_VERSION",
+    "BREAKDOWN_DIMENSIONS",
+    "CATEGORIES",
+    "DIFFICULTY_TAGS",
     "EmbeddingConfiguration",
     "EmbeddingProvider",
     "EmbeddingPromptProfile",
@@ -46,6 +65,7 @@ __all__ = [
     "MetadataFilter",
     "NO_PROMPT_PROFILE",
     "RetrievalDocument",
+    "RetrievalBenchmark",
     "RetrievalEvaluation",
     "RetrievalResult",
     "Retriever",
@@ -56,9 +76,12 @@ __all__ = [
     "VectorStore",
     "WordChunker",
     "WritingScript",
+    "aggregate_evaluations",
     "corpus_documents",
     "deterministic_document_id",
     "deduplicate_by_passage",
     "evaluate_results",
     "load_evaluation_questions",
+    "load_retrieval_benchmark",
+    "validate_benchmark_corpus_references",
 ]
