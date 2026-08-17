@@ -1,6 +1,7 @@
 """VedaVault's corpus-agnostic local retrieval interfaces."""
 
 from .chunking import WordChunker
+from .answer import ANSWER_CONTRACT_RULES, AnswerContract, AnswerMode, ScripturalClaim
 from .documents import RetrievalDocument, corpus_documents, deterministic_document_id
 from .evidence import EvidenceBundle, EvidenceItem
 from .embeddings import (
@@ -20,6 +21,9 @@ from .vector_store import IndexCompatibilityError, IndexManifest, IndexManifestE
 
 __all__ = [
     "E5_PROMPT_PROFILE",
+    "ANSWER_CONTRACT_RULES",
+    "AnswerContract",
+    "AnswerMode",
     "EmbeddingConfiguration",
     "EmbeddingProvider",
     "EmbeddingPromptProfile",
@@ -40,6 +44,7 @@ __all__ = [
     "RetrievalResult",
     "Retriever",
     "SentenceTransformerEmbeddingProvider",
+    "ScripturalClaim",
     "VectorStore",
     "WordChunker",
     "corpus_documents",
