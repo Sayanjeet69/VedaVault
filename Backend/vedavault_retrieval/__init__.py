@@ -15,6 +15,7 @@ from .embeddings import (
 )
 from .filters import MetadataFilter
 from .grounding import GROUNDING_INSTRUCTIONS, GroundingContext
+from .llm import GenerationRequest, LLMProvider, LLMProviderError
 from .evaluation import EvaluationQuestion, RetrievalEvaluation, evaluate_results, load_evaluation_questions
 from .retrieval import RetrievalResult, Retriever, deduplicate_by_passage
 from .vector_store import IndexCompatibilityError, IndexManifest, IndexManifestError, LocalVectorStore, VectorStore
@@ -33,10 +34,13 @@ __all__ = [
     "EvaluationQuestion",
     "GROUNDING_INSTRUCTIONS",
     "GroundingContext",
+    "GenerationRequest",
     "IndexCompatibilityError",
     "IndexManifest",
     "IndexManifestError",
     "LocalVectorStore",
+    "LLMProvider",
+    "LLMProviderError",
     "MetadataFilter",
     "NO_PROMPT_PROFILE",
     "RetrievalDocument",
