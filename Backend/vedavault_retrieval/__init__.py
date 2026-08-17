@@ -2,6 +2,7 @@
 
 from .chunking import WordChunker
 from .documents import RetrievalDocument, corpus_documents, deterministic_document_id
+from .evidence import EvidenceBundle, EvidenceItem
 from .embeddings import (
     E5_PROMPT_PROFILE,
     NO_PROMPT_PROFILE,
@@ -22,6 +23,8 @@ __all__ = [
     "EmbeddingProvider",
     "EmbeddingPromptProfile",
     "EmbeddingWorkload",
+    "EvidenceBundle",
+    "EvidenceItem",
     "EvaluationQuestion",
     "IndexCompatibilityError",
     "IndexManifest",

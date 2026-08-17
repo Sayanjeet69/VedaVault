@@ -3,6 +3,15 @@
 `vedavault_retrieval` owns the application's retrieval contracts. It does not
 depend on LangChain or LlamaIndex.
 
+## Evidence bundles
+
+`Retriever` finds ranked evidence. `EvidenceBundle` transports that evidence
+unchanged in a stable, model-independent form: verse identity, text layer,
+score, source, and immutable metadata remain available for traceability. A
+future grounding layer will turn a bundle into model context, and a future LLM
+will synthesize an answer from that context. Neither future layer is part of
+this package yet.
+
 Install the optional local retrieval dependencies when building an index:
 
 ```powershell
