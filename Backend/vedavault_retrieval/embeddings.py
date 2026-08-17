@@ -120,6 +120,7 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
         cpu_threads: int | None = None,
         max_seq_length: int | None = None,
         prompt_profile: EmbeddingPromptProfile | None = None,
+        local_files_only: bool = False,
         model: Any | None = None,
     ) -> None:
         self.model_name = model_name or os.getenv("VEDAVAULT_EMBEDDING_MODEL", self.DEFAULT_MODEL)
@@ -138,6 +139,7 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
         if self.cpu_threads < 1:
             raise ValueError("cpu_threads must be positive")
         self.prompt_profile = prompt_profile or _prompt_profile_from_env()
+        self.local_files_only = local_files_only
         self._model = model
 
     def _get_model(self):
@@ -152,7 +154,9 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
                 ) from exc
             if self.device.lower() == "cpu":
                 torch.set_num_threads(self.cpu_threads)
-            self._model = SentenceTransformer(self.model_name, device=self.device)
+            self._model = SentenceTransformer(
+                self.model_name, device=self.device, local_files_only=self.local_files_only
+            )
         if self.max_seq_length is not None:
             self._model.max_seq_length = self.max_seq_length
         return self._model

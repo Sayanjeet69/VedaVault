@@ -19,16 +19,21 @@ from vedavault_retrieval import (  # noqa: E402
     NO_PROMPT_PROFILE,
     EmbeddingConfiguration,
     EmbeddingProvider,
+    EvaluationQuestion,
     IndexCompatibilityError,
     IndexManifest,
     IndexManifestError,
     LocalVectorStore,
     RetrievalDocument,
+    RetrievalResult,
     Retriever,
     SentenceTransformerEmbeddingProvider,
     WordChunker,
     corpus_documents,
+    deduplicate_by_passage,
     deterministic_document_id,
+    evaluate_results,
+    load_evaluation_questions,
 )
 
 
@@ -47,6 +52,13 @@ class ToyEmbeddingProvider(EmbeddingProvider):
                 ]
             )
         return np.asarray(vectors, dtype=np.float32)
+
+
+class FixedEmbeddingProvider(EmbeddingProvider):
+    """Offline provider whose scores preserve document insertion order on ties."""
+
+    def embed(self, texts: list[str]) -> np.ndarray:
+        return np.tile(np.asarray([[1.0, 0.0]], dtype=np.float32), (len(texts), 1))
 
 
 class RecordingSentenceTransformer:
@@ -101,6 +113,73 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(results[0].document.metadata["passage_id"], "BG_02_47")
         self.assertGreater(results[0].score, 0)
         self.assertEqual(retriever.retrieve("karma", filters={"language": "Hindi"}), [])
+
+    def test_verse_deduplication_is_opt_in_and_preserves_highest_rank(self) -> None:
+        provider = FixedEmbeddingProvider()
+        documents = [
+            RetrievalDocument("a", "first layer", {"passage_id": "BG_02_47", "chapter": 2, "text_layer": "translations"}),
+            RetrievalDocument("b", "second layer", {"passage_id": "BG_02_47", "chapter": 2, "text_layer": "commentaries"}),
+            RetrievalDocument("c", "different verse", {"passage_id": "BG_02_48", "chapter": 2, "text_layer": "translations"}),
+        ]
+        store = LocalVectorStore()
+        store.add(documents, provider.embed([document.text for document in documents]))
+        retriever = Retriever(provider, store)
+        raw = retriever.retrieve("question", limit=3)
+        diversified = retriever.retrieve("question", limit=2, deduplicate_by_verse=True, diversity_candidate_limit=3)
+        self.assertEqual([result.document.document_id for result in raw], ["a", "b", "c"])
+        self.assertEqual([result.document.document_id for result in diversified], ["a", "c"])
+        self.assertEqual([result.document.document_id for result in deduplicate_by_passage(raw)], ["a", "c"])
+        filtered = retriever.retrieve(
+            "question", limit=2, text_layers={"translations"}, deduplicate_by_verse=True, diversity_candidate_limit=2
+        )
+        self.assertEqual([result.document.document_id for result in filtered], ["a", "c"])
+
+    def test_retrieval_diversification_keeps_existing_interface_defaults(self) -> None:
+        retriever = Retriever(self.provider, self.store)
+        self.assertEqual(
+            retriever.retrieve("karma", limit=1),
+            retriever.retrieve("karma", limit=1, deduplicate_by_verse=False),
+        )
+        with self.assertRaises(ValueError):
+            retriever.retrieve("karma", limit=2, deduplicate_by_verse=True, diversity_candidate_limit=1)
+
+    def test_evaluation_metrics_are_verse_level_and_report_duplicates(self) -> None:
+        question = EvaluationQuestion("q", "question", frozenset({"BG_02_47", "BG_02_48"}))
+        results = [
+            RetrievalResult(RetrievalDocument("a", "one", {"passage_id": "BG_02_47", "chapter": 2}), 0.9),
+            RetrievalResult(RetrievalDocument("b", "two", {"passage_id": "BG_02_47", "chapter": 2}), 0.8),
+            RetrievalResult(RetrievalDocument("c", "three", {"passage_id": "BG_03_19", "chapter": 3}), 0.7),
+        ]
+        metrics = evaluate_results(question, results, 3)
+        self.assertAlmostEqual(metrics.recall_at_k, 0.5)
+        self.assertAlmostEqual(metrics.precision_at_k, 1 / 3)
+        self.assertEqual(metrics.reciprocal_rank, 1.0)
+        self.assertAlmostEqual(metrics.duplicate_result_rate, 1 / 3)
+        self.assertEqual((metrics.unique_passage_count, metrics.repeated_passage_count, metrics.chapter_count), (2, 1, 2))
+        self.assertEqual(metrics.expected_found, frozenset({"BG_02_47"}))
+
+    def test_evaluation_handles_empty_results_and_no_expected_match(self) -> None:
+        question = EvaluationQuestion("q", "question", frozenset({"BG_02_47"}))
+        empty = evaluate_results(question, [], 5)
+        self.assertEqual((empty.recall_at_k, empty.precision_at_k, empty.reciprocal_rank, empty.duplicate_result_rate), (0.0, 0.0, 0.0, 0.0))
+        irrelevant = [RetrievalResult(RetrievalDocument("a", "one", {"passage_id": "BG_03_19", "chapter": 3}), 0.9)]
+        self.assertEqual(evaluate_results(question, irrelevant, 5).expected_found, frozenset())
+
+    def test_evaluation_accepts_primary_and_alternative_relevant_verses(self) -> None:
+        question = EvaluationQuestion(
+            "q", "question", frozenset({"BG_02_47", "BG_03_19"}), frozenset({"BG_02_47"}), frozenset({"BG_03_19"}), "reason"
+        )
+        alternative = [RetrievalResult(RetrievalDocument("a", "one", {"passage_id": "BG_03_19", "chapter": 3}), 0.9)]
+        metrics = evaluate_results(question, alternative, 1)
+        self.assertEqual(metrics.expected_found, frozenset({"BG_03_19"}))
+        self.assertEqual(metrics.reciprocal_rank, 1.0)
+
+    def test_evaluation_dataset_loads_and_targets_canonical_passages(self) -> None:
+        questions = load_evaluation_questions(ROOT / "Evaluation" / "bhagavad_gita_retrieval.json")
+        corpus = json.loads((ROOT / "Data" / "Processed" / "Bhagavad_Gita" / "corpus.json").read_text(encoding="utf-8"))
+        canonical_ids = {passage["passage_id"] for passage in corpus["passages"]}
+        self.assertEqual(len(questions), 10)
+        self.assertTrue(all(question.expected_passage_ids <= canonical_ids for question in questions))
 
     def test_empty_invalid_queries(self) -> None:
         retriever = Retriever(self.provider, self.store)

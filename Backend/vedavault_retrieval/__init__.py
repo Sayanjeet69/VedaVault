@@ -12,7 +12,8 @@ from .embeddings import (
     SentenceTransformerEmbeddingProvider,
 )
 from .filters import MetadataFilter
-from .retrieval import RetrievalResult, Retriever
+from .evaluation import EvaluationQuestion, RetrievalEvaluation, evaluate_results, load_evaluation_questions
+from .retrieval import RetrievalResult, Retriever, deduplicate_by_passage
 from .vector_store import IndexCompatibilityError, IndexManifest, IndexManifestError, LocalVectorStore, VectorStore
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "EmbeddingProvider",
     "EmbeddingPromptProfile",
     "EmbeddingWorkload",
+    "EvaluationQuestion",
     "IndexCompatibilityError",
     "IndexManifest",
     "IndexManifestError",
@@ -28,6 +30,7 @@ __all__ = [
     "MetadataFilter",
     "NO_PROMPT_PROFILE",
     "RetrievalDocument",
+    "RetrievalEvaluation",
     "RetrievalResult",
     "Retriever",
     "SentenceTransformerEmbeddingProvider",
@@ -35,4 +38,7 @@ __all__ = [
     "WordChunker",
     "corpus_documents",
     "deterministic_document_id",
+    "deduplicate_by_passage",
+    "evaluate_results",
+    "load_evaluation_questions",
 ]
