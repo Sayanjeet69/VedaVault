@@ -46,6 +46,13 @@ language, category, cross-language status, transliteration, code switching,
 imperfect input, and difficulty tag. Duplicate indexed layers do not gain extra
 relevance credit and remain visible as duplicates.
 
+The evaluation workflow keeps raw retrieval metrics separate from an optional
+verse-diversified downstream context. Recall, precision, MRR, duplicate rate,
+and diversity diagnostics are computed from the original ranked candidates;
+diversification reports only separately labeled context size/duplicate/diversity
+diagnostics and never changes raw MRR ranks. Context size defaults to five,
+while raw diagnostics default to ten ranked positions.
+
 The benchmark defines what VedaVault intends to measure. It does not establish
 that the current or any future embedding model performs well. Model selection
 and execution against this benchmark are separate future work.
