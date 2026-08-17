@@ -10,6 +10,7 @@ from typing import Any
 
 from .answer import ANSWER_CONTRACT_RULES, AnswerContract, AnswerMode
 from .grounding import GROUNDING_INSTRUCTIONS, GroundingContext
+from .language import LanguagePolicy
 
 
 class LLMProviderError(RuntimeError):
@@ -25,6 +26,7 @@ class GenerationRequest:
     grounding_rules: str = GROUNDING_INSTRUCTIONS
     answer_contract_rules: str = ANSWER_CONTRACT_RULES
     generation_configuration: Mapping[str, Any] | None = None
+    language_policy: LanguagePolicy | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.grounding_context, GroundingContext):
@@ -37,6 +39,9 @@ class GenerationRequest:
             raise ValueError("answer_contract_rules must be a non-empty string")
         if self.generation_configuration is not None:
             object.__setattr__(self, "generation_configuration", _freeze_mapping(self.generation_configuration))
+        if self.language_policy is not None:
+            if not isinstance(self.language_policy, LanguagePolicy):
+                raise ValueError("language_policy must be a LanguagePolicy or None")
 
     @property
     def query(self) -> str:

@@ -15,6 +15,7 @@ from .embeddings import (
 )
 from .filters import MetadataFilter
 from .grounding import GROUNDING_INSTRUCTIONS, GroundingContext
+from .language import SUPPORTED_LANGUAGES, LanguagePolicy, SupportedLanguage, WritingScript
 from .llm import GenerationRequest, LLMProvider, LLMProviderError
 from .evaluation import EvaluationQuestion, RetrievalEvaluation, evaluate_results, load_evaluation_questions
 from .retrieval import RetrievalResult, Retriever, deduplicate_by_passage
@@ -39,6 +40,7 @@ __all__ = [
     "IndexManifest",
     "IndexManifestError",
     "LocalVectorStore",
+    "LanguagePolicy",
     "LLMProvider",
     "LLMProviderError",
     "MetadataFilter",
@@ -49,8 +51,11 @@ __all__ = [
     "Retriever",
     "SentenceTransformerEmbeddingProvider",
     "ScripturalClaim",
+    "SUPPORTED_LANGUAGES",
+    "SupportedLanguage",
     "VectorStore",
     "WordChunker",
+    "WritingScript",
     "corpus_documents",
     "deterministic_document_id",
     "deduplicate_by_passage",
