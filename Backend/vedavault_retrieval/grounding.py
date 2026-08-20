@@ -8,6 +8,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from .evidence import EvidenceBundle, EvidenceItem
+from .evidence_hygiene import (
+    EvidenceHygieneError,
+    EvidenceHygienePolicy,
+    default_evidence_hygiene_policy,
+    is_contaminated_evidence,
+)
 
 
 GROUNDING_INSTRUCTIONS = """GROUNDING RULES
@@ -30,11 +36,25 @@ class GroundingContext:
         if not isinstance(self.query, str) or not self.query.strip():
             raise ValueError("query must be a non-empty string")
         object.__setattr__(self, "evidence_items", tuple(self.evidence_items))
+        if any(is_contaminated_evidence(item) for item in self.evidence_items):
+            raise EvidenceHygieneError(
+                "contaminated translation evidence cannot enter GroundingContext"
+            )
 
     @classmethod
-    def from_evidence_bundle(cls, bundle: EvidenceBundle) -> "GroundingContext":
-        """Transport evidence without reranking, deduplicating, summarizing, or interpreting it."""
-        return cls(bundle.query, bundle.items, bundle.retrieval_configuration)
+    def from_evidence_bundle(
+        cls,
+        bundle: EvidenceBundle,
+        evidence_hygiene_policy: EvidenceHygienePolicy | None = None,
+    ) -> "GroundingContext":
+        """Sanitize evidence without reranking, deduplicating, or interpreting it."""
+        if evidence_hygiene_policy is not None:
+            items = evidence_hygiene_policy.sanitize(bundle)
+        elif any(is_contaminated_evidence(item) for item in bundle.items):
+            items = default_evidence_hygiene_policy().sanitize(bundle)
+        else:
+            items = bundle.items
+        return cls(bundle.query, items, bundle.retrieval_configuration)
 
     def to_prompt_context(self) -> str:
         """Serialize complete evidence deterministically for a future provider-neutral prompt layer."""
@@ -50,10 +70,23 @@ class GroundingContext:
         if not self.evidence_items:
             lines.append("NO SCRIPTURAL EVIDENCE RETRIEVED.")
         for rank, item in enumerate(self.evidence_items, start=1):
+            substituted = bool(
+                isinstance(item.metadata.get("evidence_hygiene"), Mapping)
+                and item.metadata["evidence_hygiene"].get("substituted") is True
+            )
+            lines.extend([f"--- EVIDENCE ITEM {rank} ---"])
+            if substituted:
+                lines.extend(
+                    [
+                        f"selection_document_id: {item.document_id}",
+                        f"selection_provenance: {_serialize_value(_selection_provenance(item))}",
+                        f"grounding_provenance: {_serialize_value(_grounding_provenance(item))}",
+                    ]
+                )
+            else:
+                lines.append(f"document_id: {item.document_id}")
             lines.extend(
                 [
-                    f"--- EVIDENCE ITEM {rank} ---",
-                    f"document_id: {item.document_id}",
                     f"canonical_passage_id: {_display(item.passage_id)}",
                     f"chapter: {_display(item.chapter)}",
                     f"verse: {_display(item.verse)}",
@@ -61,7 +94,7 @@ class GroundingContext:
                     f"relevance_score: {item.score!r}",
                     f"source: {_serialize_value(item.source)}",
                     f"metadata: {_serialize_value(item.metadata)}",
-                    "retrieved_text:",
+                    "grounding_text:" if substituted else "retrieved_text:",
                     item.text,
                     f"--- END EVIDENCE ITEM {rank} ---",
                 ]
@@ -93,3 +126,14 @@ def _json_value(value: Any) -> Any:
     if isinstance(value, frozenset | set):
         return sorted(_json_value(item) for item in value)
     return value
+
+
+def _selection_provenance(item: EvidenceItem) -> Any:
+    explicit = item.metadata.get("selection_provenance")
+    if explicit is not None:
+        return explicit
+    return item.metadata.get("provenance", item.source)
+
+
+def _grounding_provenance(item: EvidenceItem) -> Any:
+    return item.metadata.get("grounding_provenance", item.metadata.get("provenance", item.source))

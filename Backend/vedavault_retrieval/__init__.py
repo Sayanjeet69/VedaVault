@@ -2,8 +2,23 @@
 
 from .chunking import WordChunker
 from .answer import ANSWER_CONTRACT_RULES, AnswerContract, AnswerMode, ScripturalClaim
+from .application import (
+    V1_CONTEXT_LIMIT,
+    V1_DIVERSITY_CANDIDATE_LIMIT,
+    V1_TEXT_LAYERS,
+    ClarificationRequiredError,
+    VedaVaultResponse,
+    VedaVaultService,
+)
 from .documents import RetrievalDocument, corpus_documents, deterministic_document_id
 from .evidence import EvidenceBundle, EvidenceItem
+from .evidence_hygiene import (
+    APPROVED_TRANSLATION_PROVENANCE,
+    CONTAMINATED_TRANSLATION_PROVENANCE,
+    CleanTranslation,
+    EvidenceHygieneError,
+    EvidenceHygienePolicy,
+)
 from .embeddings import (
     E5_PROMPT_PROFILE,
     NO_PROMPT_PROFILE,
@@ -17,6 +32,24 @@ from .filters import MetadataFilter
 from .grounding import GROUNDING_INSTRUCTIONS, GroundingContext
 from .language import SUPPORTED_LANGUAGES, LanguagePolicy, SupportedLanguage, WritingScript
 from .llm import GenerationRequest, LLMProvider, LLMProviderError
+from .query_understanding import (
+    QUERY_UNDERSTANDING_INSTRUCTIONS,
+    QueryUnderstandingProvider,
+    QueryUnderstandingProviderError,
+    QueryUnderstandingResult,
+)
+from .groq import (
+    DEFAULT_GROQ_ENDPOINT,
+    DEFAULT_GROQ_MODEL,
+    DEFAULT_GROQ_TIMEOUT_SECONDS,
+    GROQ_REASONING_EFFORT,
+    GROQ_TEMPERATURE,
+    GROUNDED_GENERATION_INSTRUCTIONS,
+    GroqClient,
+    GroqLLMProvider,
+    GroqQueryUnderstandingProvider,
+    GroqTransport,
+)
 from .evaluation import (
     BENCHMARK_VERSION,
     BREAKDOWN_DIMENSIONS,
@@ -41,6 +74,7 @@ __all__ = [
     "AggregateRetrievalEvaluation",
     "AnswerContract",
     "AnswerMode",
+    "ClarificationRequiredError",
     "BENCHMARK_VERSION",
     "BREAKDOWN_DIMENSIONS",
     "CATEGORIES",
@@ -50,11 +84,20 @@ __all__ = [
     "EmbeddingPromptProfile",
     "EmbeddingWorkload",
     "EvidenceBundle",
+    "EvidenceHygieneError",
+    "EvidenceHygienePolicy",
     "EvidenceItem",
+    "CleanTranslation",
+    "APPROVED_TRANSLATION_PROVENANCE",
+    "CONTAMINATED_TRANSLATION_PROVENANCE",
     "EvaluationQuestion",
     "GROUNDING_INSTRUCTIONS",
     "GroundingContext",
     "GenerationRequest",
+    "GroqClient",
+    "GroqLLMProvider",
+    "GroqQueryUnderstandingProvider",
+    "GroqTransport",
     "IndexCompatibilityError",
     "IndexManifest",
     "IndexManifestError",
@@ -64,6 +107,10 @@ __all__ = [
     "LLMProviderError",
     "MetadataFilter",
     "NO_PROMPT_PROFILE",
+    "QUERY_UNDERSTANDING_INSTRUCTIONS",
+    "QueryUnderstandingProvider",
+    "QueryUnderstandingProviderError",
+    "QueryUnderstandingResult",
     "RetrievalDocument",
     "RetrievalBenchmark",
     "RetrievalEvaluation",
@@ -74,6 +121,8 @@ __all__ = [
     "SUPPORTED_LANGUAGES",
     "SupportedLanguage",
     "VectorStore",
+    "VedaVaultResponse",
+    "VedaVaultService",
     "WordChunker",
     "WritingScript",
     "aggregate_evaluations",
@@ -84,4 +133,13 @@ __all__ = [
     "load_evaluation_questions",
     "load_retrieval_benchmark",
     "validate_benchmark_corpus_references",
+    "DEFAULT_GROQ_ENDPOINT",
+    "DEFAULT_GROQ_MODEL",
+    "DEFAULT_GROQ_TIMEOUT_SECONDS",
+    "GROQ_REASONING_EFFORT",
+    "GROQ_TEMPERATURE",
+    "GROUNDED_GENERATION_INSTRUCTIONS",
+    "V1_CONTEXT_LIMIT",
+    "V1_DIVERSITY_CANDIDATE_LIMIT",
+    "V1_TEXT_LAYERS",
 ]
