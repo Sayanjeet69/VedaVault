@@ -72,6 +72,83 @@ raises `ClarificationRequiredError` before retrieval or generation. The manual
 `Scripts/vedavault_chat_smoke.py` entry point runs one explicitly invoked live
 query; automated tests never invoke it.
 
+## HTTP API
+
+The API is a thin adapter over the frozen RAG V1 pipeline:
+
+    VedaVaultService
+           ↓
+        HTTP API
+           ↓
+    future web frontend
+
+`Backend/vedavault_api.py` exposes:
+
+- `GET /health`: deterministic process health metadata. It does not construct
+  the retrieval service or call Groq.
+- `POST /answer`: validates a request, creates the existing `LanguagePolicy`,
+  calls `VedaVaultService.answer(...)`, and returns compact frontend-safe JSON.
+
+The answer request requires `query`. `input_language` defaults to `en`,
+`response_language` defaults to the resolved input language, and `mode` defaults
+to `textual`. Public V1 language codes are `en`, `hi`, `bn`, and `sa`. Answer
+modes are `textual`, `philosophical`, and `application`.
+
+The response contains the original query, retrieval rewrite, resolved response
+language, mode, evidence sufficiency, scriptural teaching and citations,
+interpretation, application, limitations, cited verse IDs, and ranked retrieved
+verse IDs. It never returns prompts, raw provider messages, authorization data,
+or the Groq API key.
+
+Runtime configuration:
+
+- `GROQ_API_KEY`: existing Groq credential read by `GroqClient`.
+- `VEDAVAULT_INDEX_PATH`: optional override for the existing local index path.
+- `VEDAVAULT_CORS_ORIGINS`: optional comma-separated allowed origins. Defaults
+  to `http://localhost:3000,http://localhost:5173`; unrestricted `*` is refused.
+
+The expensive local embedding provider and index are initialized lazily on the
+first `/answer` request and cached once per API process. `/health` stays cheap.
+Clarification requests return HTTP 409, identifiable upstream rate limits return
+429, other provider failures return 502, unavailable local evidence/services
+return 503, and unexpected failures return generic 500 JSON without internals.
+
+Install the API runtime and offline test-client dependencies explicitly (the
+repository does not install them automatically):
+
+```powershell
+python -m pip install -r Backend/requirements-api.txt
+```
+
+Launch locally from the repository root:
+
+```powershell
+python -m uvicorn vedavault_api:app --app-dir Backend --host 127.0.0.1 --port 8000
+```
+
+Example requests:
+
+```text
+GET http://127.0.0.1:8000/health
+```
+
+```powershell
+$body = @{
+    query = "gita me agar pura try karu fir bhi result na mile toh kya karu"
+    input_language = "hi"
+    response_language = "hi"
+    mode = "application"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post `
+    -Uri http://127.0.0.1:8000/answer `
+    -ContentType application/json `
+    -Body $body
+```
+
+The API adds no session state, persistence, authentication, streaming,
+frontend, or deployment layer. RAG V1 remains unchanged underneath it.
+
 ## Multilingual retrieval benchmark
 
 `Evaluation/bhagavad_gita_retrieval.json` is a deterministic, versioned

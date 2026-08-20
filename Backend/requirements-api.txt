@@ -1,0 +1,7 @@
+# HTTP API runtime (includes the existing local retrieval stack).
+-r requirements-retrieval.txt
+fastapi>=0.110,<1
+uvicorn>=0.29,<1
+
+# Required only by the deterministic FastAPI TestClient suite.
+httpx>=0.27,<1
