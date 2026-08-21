@@ -1,0 +1,80 @@
+@if (mobile() && open()) {
+  <button class="drawer-backdrop" type="button" aria-label="Close navigation" (click)="closed.emit()"></button>
+}
+
+<aside
+  #drawer
+  class="sidebar"
+  [class.sidebar--open]="open()"
+  [attr.role]="mobile() ? 'dialog' : null"
+  [attr.aria-modal]="mobile() ? 'true' : null"
+  [attr.aria-label]="mobile() ? 'Journey navigation' : 'VedaVault navigation'"
+  [attr.aria-hidden]="mobile() && !open()"
+  [attr.inert]="mobile() && !open() ? '' : null"
+>
+  <div class="sidebar-top">
+    <a class="sidebar-brand" routerLink="/" aria-label="VedaVault home">
+      <app-brand-mark />
+      <span>VedaVault</span>
+    </a>
+    <button #closeButton class="drawer-close" type="button" aria-label="Close navigation" (click)="closed.emit()">
+      <svg lucideX size="19" strokeWidth="1.8"></svg>
+    </button>
+  </div>
+
+  <button class="new-journey" type="button" [disabled]="busy()" (click)="startNewJourney()">
+    <svg lucidePlus size="17" strokeWidth="1.9"></svg>
+    <span>New Journey</span>
+  </button>
+
+  <section class="journeys" aria-labelledby="journey-heading">
+    <div class="section-label">
+      <h2 id="journey-heading">Journey</h2>
+      <span>In memory</span>
+    </div>
+    <button class="journey-item journey-item--active" type="button">
+      <svg lucideMessageSquare size="15" strokeWidth="1.7"></svg>
+      <span>
+        <strong>{{ hasMessages() ? 'Current reflection' : 'A new beginning' }}</strong>
+        <small>{{ hasMessages() ? 'This journey · just now' : 'Ask your first question' }}</small>
+      </span>
+      <i aria-hidden="true"></i>
+    </button>
+    <p class="history-note">Conversation context is held in memory for this journey.</p>
+  </section>
+
+  <div class="sidebar-spacer"></div>
+
+  <section class="preferences" aria-labelledby="preferences-heading">
+    <h2 id="preferences-heading">Preferences</h2>
+    <label class="preference-row">
+      <span class="preference-icon"><svg lucideLanguages size="16" strokeWidth="1.7"></svg></span>
+      <span class="preference-copy"><strong>Language</strong><small>Response language</small></span>
+      <select [value]="language()" (change)="updateLanguage($event)" aria-label="Response language">
+        @for (option of languageOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+    </label>
+    <label class="preference-row">
+      <span class="preference-icon"><svg lucideSparkles size="16" strokeWidth="1.7"></svg></span>
+      <span class="preference-copy"><strong>Answer mode</strong><small>Depth and intent</small></span>
+      <select [value]="mode()" (change)="updateMode($event)" aria-label="Answer mode">
+        @for (option of modeOptions; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+    </label>
+  </section>
+
+  <div class="sidebar-footer">
+    <a routerLink="/" class="about-link">
+      <svg lucideInfo size="16" strokeWidth="1.7"></svg>
+      <span>About VedaVault</span>
+    </a>
+    <div class="source-aware">
+      <svg lucideBookOpen size="14" strokeWidth="1.7"></svg>
+      <span>Source-aware by design</span>
+    </div>
+  </div>
+</aside>

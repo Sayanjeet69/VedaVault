@@ -1,0 +1,49 @@
+<form class="composer" aria-label="Ask VedaVault" (submit)="submit($event)">
+  <label class="sr-only" for="vedavault-query">Ask VedaVault anything</label>
+  <textarea
+    #textarea
+    id="vedavault-query"
+    rows="1"
+    maxlength="2000"
+    placeholder="Ask VedaVault anything..."
+    [value]="value()"
+    [disabled]="busy()"
+    (input)="onInput($event)"
+    (keydown)="onKeydown($event)"
+  ></textarea>
+
+  <div class="composer-controls">
+    <div class="selectors">
+      <label class="select-control">
+        <span class="sr-only">Response language</span>
+        <select [value]="language()" [disabled]="busy()" (change)="updateLanguage($event)">
+          @for (option of languageOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        <svg lucideChevronDown size="13" strokeWidth="1.8"></svg>
+      </label>
+
+      <span class="control-divider" aria-hidden="true"></span>
+
+      <label class="select-control mode-control" [title]="currentModeDescription">
+        <span class="active-dot" aria-hidden="true"></span>
+        <span class="sr-only">Answer mode</span>
+        <select [value]="mode()" [disabled]="busy()" (change)="updateMode($event)">
+          @for (option of modeOptions; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+        <svg lucideChevronDown size="13" strokeWidth="1.8"></svg>
+      </label>
+    </div>
+
+    <div class="send-area">
+      <span class="shortcut" aria-hidden="true">Enter to send</span>
+      <button type="submit" [disabled]="!canSend" aria-label="Send message">
+        <svg lucideArrowUp size="19" strokeWidth="2"></svg>
+      </button>
+    </div>
+  </div>
+</form>
+<p class="selection-note">{{ currentModeDescription }}</p>

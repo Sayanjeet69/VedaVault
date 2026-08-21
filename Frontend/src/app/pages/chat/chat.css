@@ -1,0 +1,72 @@
+:host { display: block; height: 100dvh; overflow: hidden; }
+.chat-shell { display: grid; height: 100dvh; grid-template-columns: 16.25rem minmax(0, 1fr); overflow: hidden; background: var(--bg-primary); }
+.chat-main { position: relative; display: flex; height: 100dvh; flex-direction: column; overflow: hidden; background: radial-gradient(circle at 65% -10%, rgba(255,153,51,.035), transparent 34rem), var(--bg-primary); }
+.chat-header { z-index: 10; display: flex; min-height: 4rem; flex: 0 0 4rem; align-items: center; justify-content: space-between; gap: 1rem; padding: 0 clamp(1rem, 3vw, 2.25rem); border-bottom: 1px solid var(--border-subtle); background: rgba(8,8,8,.84); backdrop-filter: blur(16px); }
+.header-left, .desktop-title, .mobile-brand, .grounded-badge { display: flex; align-items: center; }
+.desktop-title { gap: .65rem; color: var(--text-muted); font-size: .72rem; }
+.desktop-title > span { color: var(--text-primary); font-size: .82rem; font-weight: 650; }
+.desktop-title i { width: 2px; height: 2px; border-radius: 50%; background: var(--saffron-muted); }
+.desktop-title strong { font-weight: 500; }
+.menu-button, .mobile-brand { display: none; }
+.grounded-badge { min-height: 2rem; gap: .42rem; padding: .35rem .55rem; border: 1px solid var(--border-subtle); border-radius: .55rem; color: var(--text-muted); font-size: .63rem; }
+.grounded-badge svg { color: var(--success); }
+
+.conversation-viewport { position: relative; min-height: 0; flex: 1; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.empty-state { display: flex; width: min(100% - 2.5rem, 48rem); min-height: 100%; margin: 0 auto; flex-direction: column; align-items: center; justify-content: center; padding: 3rem 0 2.5rem; text-align: center; animation: empty-in 420ms var(--ease-out) both; }
+.empty-mark { display: grid; width: 3.6rem; height: 3.6rem; place-items: center; margin-bottom: 1.15rem; border: 1px solid rgba(255,153,51,.18); border-radius: 1.1rem; background: linear-gradient(145deg, rgba(255,153,51,.07), rgba(255,255,255,.018)); box-shadow: 0 16px 40px rgba(0,0,0,.25); }
+.empty-eyebrow { margin: 0 0 .55rem; color: var(--saffron-muted); font-size: .65rem; font-weight: 680; letter-spacing: .14em; text-transform: uppercase; }
+.empty-state h1 { margin: 0; font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3.15rem); font-weight: 430; letter-spacing: -.045em; line-height: 1.08; }
+.empty-copy { margin: .65rem 0 0; color: var(--text-secondary); font-size: .88rem; }
+.suggestions { display: grid; width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; margin-top: 2rem; text-align: left; }
+.suggestions button { display: flex; min-width: 0; min-height: 4.2rem; align-items: center; justify-content: space-between; gap: .9rem; padding: .82rem .9rem; border: 1px solid var(--border-subtle); border-radius: .85rem; color: var(--text-secondary); background: rgba(255,255,255,.018); font-size: .75rem; line-height: 1.45; text-align: left; transition: transform var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast), background var(--duration-fast); }
+.suggestions button:hover { transform: translateY(-2px); border-color: rgba(255,153,51,.25); color: var(--text-primary); background: rgba(255,153,51,.035); }
+.suggestions button span { min-width: 0; overflow-wrap: anywhere; }
+.suggestions button i { color: var(--saffron-muted); font-size: .8rem; font-style: normal; transition: transform var(--duration-fast); }
+.suggestions button:hover i { transform: translate(2px, -2px); }
+.suggestion-hint { margin: .8rem 0 0; color: var(--text-muted); font-size: .62rem; }
+
+.message-list { display: flex; min-height: 100%; flex-direction: column; gap: 2.2rem; padding: clamp(2rem, 5vw, 4rem) clamp(1rem, 5vw, 4rem) 2.25rem; }
+.composer-dock { position: relative; z-index: 8; flex: 0 0 auto; padding: .75rem clamp(1rem, 4vw, 3rem) max(.8rem, env(safe-area-inset-bottom)); background: linear-gradient(transparent, rgba(8,8,8,.93) 18%, var(--bg-primary) 52%); }
+.composer-wrap { width: min(100%, 54rem); margin: 0 auto; }
+.grounding-note { margin: .42rem 0 0; color: var(--text-muted); font-size: .59rem; text-align: center; }
+
+@keyframes empty-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 900px) {
+  .chat-shell { grid-template-columns: 1fr; }
+  app-sidebar { position: absolute; }
+  .chat-header { min-height: 3.75rem; flex-basis: 3.75rem; padding: 0 .85rem; }
+  .menu-button { display: grid; width: 2.75rem; height: 2.75rem; place-items: center; border: 0; border-radius: .7rem; color: var(--text-secondary); background: transparent; }
+  .menu-button:hover { color: var(--text-primary); background: rgba(255,255,255,.04); }
+  .mobile-brand { gap: .35rem; margin-left: -.15rem; }
+  .mobile-brand app-brand-mark { transform: scale(.8); }
+  .mobile-brand strong { font-size: .78rem; }
+  .desktop-title { display: none; }
+  .grounded-badge span { display: none; }
+  .grounded-badge { width: 2.25rem; justify-content: center; padding: 0; }
+  .empty-state { width: min(100% - 2rem, 42rem); padding-top: 2rem; }
+  .message-list { padding-right: clamp(1rem, 4vw, 2rem); padding-left: clamp(1rem, 4vw, 2rem); }
+  .composer-dock { padding-right: .8rem; padding-left: .8rem; }
+}
+
+@media (max-width: 600px) {
+  .empty-state { justify-content: flex-start; padding-top: clamp(2.75rem, 10vh, 5.5rem); }
+  .empty-mark { width: 3.2rem; height: 3.2rem; }
+  .suggestions { grid-template-columns: 1fr; gap: .5rem; margin-top: 1.55rem; }
+  .suggestions button { min-height: 3.45rem; }
+  .message-list { gap: 1.75rem; padding-top: 1.75rem; padding-bottom: 1.25rem; }
+  .grounding-note { display: none; }
+  .composer-dock { padding-top: .55rem; }
+}
+
+@media (max-width: 380px) {
+  .empty-state { width: calc(100% - 1.4rem); }
+  .empty-state h1 { font-size: 1.8rem; }
+  .message-list { padding-right: .75rem; padding-left: .75rem; }
+  .composer-dock { padding-right: .55rem; padding-left: .55rem; }
+}
+
+@media (min-width: 1440px) {
+  .chat-shell { grid-template-columns: 17rem minmax(0, 1fr); }
+  app-sidebar { width: 17rem; }
+}

@@ -1,0 +1,98 @@
+<div class="chat-shell min-h-dvh">
+  <app-sidebar
+    [open]="drawerOpen()"
+    [mobile]="isMobile()"
+    [language]="language()"
+    [mode]="mode()"
+    [hasMessages]="hasMessages()"
+    [busy]="busy()"
+    (closed)="closeDrawer()"
+    (newJourney)="startNewJourney()"
+    (languageChange)="language.set($event)"
+    (modeChange)="mode.set($event)"
+  />
+
+  <main class="chat-main min-w-0" aria-label="VedaVault conversation">
+    <header class="chat-header">
+      <div class="header-left">
+        <button
+          #menuButton
+          class="menu-button"
+          type="button"
+          aria-label="Open navigation"
+          [attr.aria-expanded]="drawerOpen()"
+          (click)="openDrawer()"
+        >
+          <svg lucideMenu size="20" strokeWidth="1.8"></svg>
+        </button>
+        <div class="mobile-brand"><app-brand-mark /><strong>VedaVault</strong></div>
+        <div class="desktop-title">
+          <span>VedaVault</span>
+          <i aria-hidden="true"></i>
+          <strong>{{ hasMessages() ? 'Current reflection' : 'A new journey' }}</strong>
+        </div>
+      </div>
+      <div class="grounded-badge">
+        <svg lucideShieldCheck size="14" strokeWidth="1.8"></svg>
+        <span>Source-aware</span>
+      </div>
+    </header>
+
+    <section #messageViewport class="conversation-viewport" aria-label="Conversation messages">
+      @if (!hasMessages() && !thinking()) {
+        <section class="empty-state" aria-labelledby="empty-heading">
+          <div class="empty-mark"><app-brand-mark /></div>
+          <p class="empty-eyebrow">Begin with a question</p>
+          <h1 id="empty-heading">What wisdom do you seek?</h1>
+          <p class="empty-copy">Ask VedaVault about the Bhagavad Gita.</p>
+          <div class="suggestions" aria-label="Suggested questions">
+            @for (suggestion of suggestions; track suggestion.label) {
+              <button type="button" [lang]="suggestion.language" (click)="chooseSuggestion(suggestion)">
+                <span>{{ suggestion.label }}</span>
+                <i aria-hidden="true">↗</i>
+              </button>
+            }
+          </div>
+          <p class="suggestion-hint">Suggestions fill the composer — review before sending.</p>
+        </section>
+      } @else {
+        <div class="message-list">
+          @for (message of messages(); track message.id) {
+            @if (message.role === 'user') {
+              <app-user-message [message]="message" />
+            } @else {
+              <app-assistant-message [message]="message" />
+            }
+          }
+          @if (thinking()) {
+            <app-thinking-indicator />
+          }
+          @if (error(); as errorState) {
+            <app-error-notice
+              [title]="errorState.title"
+              [message]="errorState.message"
+              [tone]="errorState.tone"
+              (dismiss)="error.set(null)"
+            />
+          }
+        </div>
+      }
+    </section>
+
+    <footer class="composer-dock">
+      <div class="composer-wrap">
+        <app-chat-composer
+          [value]="draft()"
+          [language]="language()"
+          [mode]="mode()"
+          [busy]="busy()"
+          (valueChange)="draft.set($event)"
+          (languageChange)="language.set($event)"
+          (modeChange)="mode.set($event)"
+          (send)="sendMessage()"
+        />
+        <p class="grounding-note">Live VedaVault API · grounded answers may take a moment</p>
+      </div>
+    </footer>
+  </main>
+</div>

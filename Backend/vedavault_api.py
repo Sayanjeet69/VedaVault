@@ -41,6 +41,7 @@ DEFAULT_INDEX_PATH = (
 )
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:3000",
+    "http://localhost:4200",
     "http://localhost:5173",
 )
 V1_LANGUAGES = frozenset(

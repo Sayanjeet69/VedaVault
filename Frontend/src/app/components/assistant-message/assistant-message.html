@@ -1,0 +1,89 @@
+<article class="assistant-answer" aria-label="VedaVault response">
+  <header class="answer-header">
+    <div class="identity">
+      <app-brand-mark />
+      <div>
+        <strong>VedaVault</strong>
+        <span><i aria-hidden="true"></i> Grounded response</span>
+      </div>
+    </div>
+    <span class="mode-label">{{ message().response.mode }}</span>
+  </header>
+
+  <div class="answer-body">
+    <section class="answer-section teaching-section" aria-labelledby="teaching-heading">
+      <div class="section-heading">
+        <svg lucideQuote size="16" strokeWidth="1.7"></svg>
+        <h3 id="teaching-heading">Scriptural teaching</h3>
+      </div>
+      @for (teaching of message().response.scriptural_teaching; track teaching.statement) {
+        <div class="teaching-claim">
+          <p class="lead">{{ teaching.statement }}</p>
+          @if (teaching.cited_verse_ids.length) {
+            <p class="claim-citations">
+              @for (verseId of teaching.cited_verse_ids; track verseId) {
+                <span>{{ citationLabel(verseId) }}</span>
+              }
+            </p>
+          }
+        </div>
+      }
+    </section>
+
+    @if (interpretation(); as interpretation) {
+      <section class="answer-section softer-section" aria-labelledby="interpretation-heading">
+        <div class="section-heading">
+          <span class="section-index">01</span>
+          <h3 id="interpretation-heading">Interpretation</h3>
+        </div>
+        <p>{{ interpretation }}</p>
+      </section>
+    }
+
+    @if (application(); as application) {
+      <section class="answer-section application-section" aria-labelledby="application-heading">
+        <div class="section-heading">
+          <svg lucideSparkles size="16" strokeWidth="1.7"></svg>
+          <h3 id="application-heading">Practical application</h3>
+        </div>
+        <p>{{ application }}</p>
+      </section>
+    }
+
+    @if (limitations().length) {
+      <section class="limitations" aria-label="Limitations">
+        @for (limitation of limitations(); track limitation) {
+          <p>{{ limitation }}</p>
+        }
+      </section>
+    }
+
+    @if (message().response.cited_verse_ids.length) {
+      <section class="sources" [attr.aria-labelledby]="'sources-heading-' + message().id">
+        <div class="sources-title">
+          <h3 [id]="'sources-heading-' + message().id">Sources</h3>
+          <span>{{ message().response.cited_verse_ids.length }} passages</span>
+        </div>
+        <div class="source-chips">
+          @for (verseId of message().response.cited_verse_ids; track verseId) {
+            <app-citation-chip
+              [label]="citationLabel(verseId)"
+              [expanded]="expandedSource() === verseId"
+              [panelId]="panelId(verseId)"
+              (activated)="toggleSource(verseId)"
+            />
+          }
+        </div>
+        @for (verseId of message().response.cited_verse_ids; track verseId) {
+          @if (expandedSource() === verseId) {
+            <app-scripture-card
+              [verseId]="verseId"
+              [panelId]="panelId(verseId)"
+              (closed)="expandedSource.set(null)"
+            />
+          }
+        }
+      </section>
+    }
+  </div>
+</article>
