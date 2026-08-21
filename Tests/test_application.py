@@ -15,6 +15,9 @@ from vedavault_retrieval import (  # noqa: E402
     AnswerContract,
     AnswerMode,
     ClarificationRequiredError,
+    ConversationContext,
+    ConversationRole,
+    ConversationTurn,
     LLMProvider,
     LLMProviderError,
     LanguagePolicy,
@@ -38,13 +41,16 @@ class FakeQueryUnderstandingProvider(QueryUnderstandingProvider):
         self.retrieval_query = retrieval_query
         self.clarification_required = clarification_required
         self.calls: list[tuple[str, LanguagePolicy]] = []
+        self.conversation_contexts: list[ConversationContext | None] = []
 
     def understand(
         self,
         original_query: str,
         language_policy: LanguagePolicy,
+        conversation_context: ConversationContext | None = None,
     ) -> QueryUnderstandingResult:
         self.calls.append((original_query, language_policy))
+        self.conversation_contexts.append(conversation_context)
         return self.validate_response(
             original_query,
             language_policy,
@@ -292,6 +298,50 @@ class VedaVaultServiceTests(unittest.TestCase):
                 self.policy,
                 mode=AnswerMode.TEXTUAL,
             )
+
+    def test_conversation_context_only_affects_understanding_and_each_turn_retrieves_fresh(self) -> None:
+        service, understanding, retriever, generator = self.make_service()
+        history_marker = "Earlier assistant cited BG_18_66 and discussed surrender."
+        context = ConversationContext(
+            (
+                ConversationTurn(ConversationRole.USER, "What about duty?"),
+                ConversationTurn(
+                    ConversationRole.ASSISTANT,
+                    history_marker,
+                    SupportedLanguage.ENGLISH,
+                ),
+            )
+        )
+
+        first = service.answer(
+            "And what if I fail?",
+            self.policy,
+            mode=AnswerMode.TEXTUAL,
+            conversation_context=context,
+        )
+        second = service.answer(
+            "And after that?",
+            self.policy,
+            mode=AnswerMode.TEXTUAL,
+            conversation_context=context,
+        )
+
+        self.assertEqual(understanding.conversation_contexts, [context, context])
+        self.assertEqual(len(retriever.calls), 2)
+        self.assertEqual(len(generator.requests), 2)
+        self.assertNotIn(
+            history_marker,
+            first.grounding_context.to_prompt_context(),
+        )
+        self.assertNotIn("BG_18_66", first.grounding_context.to_prompt_context())
+        self.assertEqual(
+            first.answer.evidence_passage_ids,
+            frozenset({"BG_02_47", "BG_02_48"}),
+        )
+        self.assertEqual(
+            second.answer.evidence_passage_ids,
+            frozenset({"BG_02_47", "BG_02_48"}),
+        )
 
 
 if __name__ == "__main__":

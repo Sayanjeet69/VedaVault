@@ -11,6 +11,17 @@ from .application import (
     VedaVaultService,
 )
 from .documents import RetrievalDocument, corpus_documents, deterministic_document_id
+from .conversation import (
+    V1_ASSISTANT_HISTORY_CHAR_LIMIT,
+    V1_CONVERSATION_TURN_LIMIT,
+    V1_USER_HISTORY_CHAR_LIMIT,
+    ConversationContext,
+    ConversationRole,
+    ConversationSession,
+    ConversationStore,
+    ConversationTurn,
+    InMemoryConversationStore,
+)
 from .evidence import EvidenceBundle, EvidenceItem
 from .evidence_hygiene import (
     APPROVED_TRANSLATION_PROVENANCE,
@@ -75,6 +86,11 @@ __all__ = [
     "AnswerContract",
     "AnswerMode",
     "ClarificationRequiredError",
+    "ConversationContext",
+    "ConversationRole",
+    "ConversationSession",
+    "ConversationStore",
+    "ConversationTurn",
     "BENCHMARK_VERSION",
     "BREAKDOWN_DIMENSIONS",
     "CATEGORIES",
@@ -101,6 +117,7 @@ __all__ = [
     "IndexCompatibilityError",
     "IndexManifest",
     "IndexManifestError",
+    "InMemoryConversationStore",
     "LocalVectorStore",
     "LanguagePolicy",
     "LLMProvider",
@@ -140,6 +157,9 @@ __all__ = [
     "GROQ_TEMPERATURE",
     "GROUNDED_GENERATION_INSTRUCTIONS",
     "V1_CONTEXT_LIMIT",
+    "V1_ASSISTANT_HISTORY_CHAR_LIMIT",
+    "V1_CONVERSATION_TURN_LIMIT",
+    "V1_USER_HISTORY_CHAR_LIMIT",
     "V1_DIVERSITY_CANDIDATE_LIMIT",
     "V1_TEXT_LAYERS",
 ]

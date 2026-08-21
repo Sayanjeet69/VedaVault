@@ -19,6 +19,9 @@ from vedavault_retrieval import (  # noqa: E402
     DEFAULT_GROQ_ENDPOINT,
     DEFAULT_GROQ_MODEL,
     AnswerMode,
+    ConversationContext,
+    ConversationRole,
+    ConversationTurn,
     EvidenceBundle,
     GenerationRequest,
     GroqClient,
@@ -506,6 +509,158 @@ class GroqProviderTests(unittest.TestCase):
         self.assertIn("retrieval_query (a non-empty string)", system_prompt)
         self.assertIn("clarification_required (a boolean)", system_prompt)
         self.assertIn("Do not return original_query", system_prompt)
+
+    def test_language_only_follow_up_resolves_to_minimal_prior_topic(self) -> None:
+        model_output = json.dumps(
+            {
+                "retrieval_query": "Bhagavad Gita teachings on desire",
+                "clarification_required": False,
+            }
+        )
+        transport = FakeTransport(api_response(model_output))
+        provider = GroqQueryUnderstandingProvider(
+            client=GroqClient(api_key="offline-test-key", transport=transport)
+        )
+        context = ConversationContext(
+            (
+                ConversationTurn(
+                    ConversationRole.USER,
+                    "What does the Gita say about desire?",
+                ),
+                ConversationTurn(
+                    ConversationRole.ASSISTANT,
+                    "A compact prior explanation.",
+                    SupportedLanguage.ENGLISH,
+                ),
+            )
+        )
+
+        result = provider.understand("Explain that in Bengali.", self.policy, context)
+
+        self.assertEqual(result.retrieval_query, "desire")
+        call = transport.calls[0]["payload"]
+        system_prompt = call["messages"][0]["content"]
+        normalized_prompt = " ".join(system_prompt.split())
+        user_input = json.loads(call["messages"][1]["content"])
+        self.assertEqual(user_input["original_query"], "Explain that in Bengali.")
+        self.assertEqual(
+            [turn["role"] for turn in user_input["conversation_context"]["recent_turns"]],
+            ["user", "assistant"],
+        )
+        self.assertIn("use it only to resolve references", system_prompt)
+        self.assertIn("CURRENT turn", system_prompt)
+        self.assertIn("never scripture evidence", system_prompt)
+        self.assertIn("shortest faithful standalone", normalized_prompt)
+        self.assertIn('"explain that"', normalized_prompt)
+        self.assertIn('"in Bengali"', normalized_prompt)
+        self.assertIn('"সহজ করে বলো"', normalized_prompt)
+        self.assertIn('"Bhagavad Gita teachings on"', normalized_prompt)
+        self.assertIn('"Gita says about"', normalized_prompt)
+        self.assertIn('"explanation of"', normalized_prompt)
+
+    def test_bengali_language_only_follow_up_resolves_to_prior_topic(self) -> None:
+        transport = FakeTransport(
+            api_response(
+                json.dumps(
+                    {
+                        "retrieval_query": "desire",
+                        "clarification_required": False,
+                    }
+                )
+            )
+        )
+        provider = GroqQueryUnderstandingProvider(
+            client=GroqClient(api_key="offline-test-key", transport=transport)
+        )
+        context = ConversationContext(
+            (
+                ConversationTurn(
+                    ConversationRole.USER,
+                    "What does the Gita say about desire?",
+                ),
+                ConversationTurn(
+                    ConversationRole.ASSISTANT,
+                    "A compact prior explanation.",
+                    SupportedLanguage.ENGLISH,
+                ),
+            )
+        )
+        policy = LanguagePolicy(
+            input_languages=(SupportedLanguage.BENGALI,),
+            requested_response_language=SupportedLanguage.BENGALI,
+        )
+
+        result = provider.understand(
+            "এবার বাংলায় বুঝিয়ে বলো",
+            policy,
+            context,
+        )
+
+        self.assertEqual(result.retrieval_query, "desire")
+        self.assertIs(result.language_policy, policy)
+        user_input = json.loads(
+            transport.calls[0]["payload"]["messages"][1]["content"]
+        )
+        self.assertEqual(
+            user_input["language_policy"]["requested_response_language"],
+            "bn",
+        )
+
+    def test_explicit_current_topic_replaces_old_context_topic(self) -> None:
+        transport = FakeTransport(
+            api_response(
+                json.dumps(
+                    {"retrieval_query": "desire", "clarification_required": False}
+                )
+            )
+        )
+        provider = GroqQueryUnderstandingProvider(
+            client=GroqClient(api_key="offline-test-key", transport=transport)
+        )
+        context = ConversationContext(
+            (
+                ConversationTurn(ConversationRole.USER, "What causes anger?"),
+                ConversationTurn(
+                    ConversationRole.ASSISTANT,
+                    "A compact prior explanation.",
+                    SupportedLanguage.ENGLISH,
+                ),
+            )
+        )
+
+        result = provider.understand("What about desire?", self.policy, context)
+
+        self.assertEqual(result.retrieval_query, "desire")
+        self.assertNotIn("anger", result.retrieval_query.casefold())
+
+    def test_dependent_follow_up_keeps_resolved_topic_and_relation(self) -> None:
+        transport = FakeTransport(
+            api_response(
+                json.dumps(
+                    {
+                        "retrieval_query": "causes of anger",
+                        "clarification_required": False,
+                    }
+                )
+            )
+        )
+        provider = GroqQueryUnderstandingProvider(
+            client=GroqClient(api_key="offline-test-key", transport=transport)
+        )
+        context = ConversationContext(
+            (
+                ConversationTurn(ConversationRole.USER, "What is anger?"),
+                ConversationTurn(
+                    ConversationRole.ASSISTANT,
+                    "A compact prior explanation.",
+                    SupportedLanguage.ENGLISH,
+                ),
+            )
+        )
+
+        result = provider.understand("Why does it arise?", self.policy, context)
+
+        self.assertEqual(result.retrieval_query, "causes of anger")
 
     def test_query_understanding_unexpected_fields_remain_rejected(self) -> None:
         model_output = json.dumps(

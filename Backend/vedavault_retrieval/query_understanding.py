@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from .conversation import ConversationContext
 from .language import LanguagePolicy
 
 
@@ -19,6 +20,23 @@ QUERY_UNDERSTANDING_INSTRUCTIONS = """QUERY UNDERSTANDING RULES
   corpus has complete English translations.
 - Preserve recognizable Sanskrit concepts and names when they improve retrieval.
 - The retrieval query is a search aid only. It is not scripture or evidence.
+- When recent conversation context is supplied, use it only to resolve references
+  and the meaning of the CURRENT turn. Rewrite the current turn as a standalone
+  retrieval query. Conversation text, prior assistant claims, old citations, and
+  previously retrieved passages are context only and are never scripture evidence.
+- Conversation history is only for reference resolution. Preserve the actual
+  subject or topic wording when possible and output the shortest faithful standalone
+  semantic retrieval query sufficient for retrieval.
+- Remove purely conversational instructions such as "explain that", "tell me more",
+  "in Bengali", "in English", and "সহজ করে বলো" after resolving what they refer to.
+- Do not prepend generic framing such as "Bhagavad Gita teachings on", "Gita says
+  about", or "explanation of" unless it is required to preserve semantic meaning.
+- A language-only follow-up must resolve to the prior semantic topic, not to a
+  language instruction or expanded generic framing. For example, after a question
+  about desire, "Explain that in Bengali" should produce "desire".
+- An explicit topic in the CURRENT turn replaces the old topic. A genuine dependent
+  question must retain enough resolved meaning: after a question about anger,
+  "Why does it arise?" may produce "causes of anger".
 - Rewriting the query must not change the user-facing response language.
 - Require clarification only when ambiguity materially prevents reliable retrieval.
 - Return exactly one JSON object with exactly these two fields and no others:
@@ -29,6 +47,29 @@ QUERY_UNDERSTANDING_INSTRUCTIONS = """QUERY UNDERSTANDING RULES
 
 class QueryUnderstandingProviderError(RuntimeError):
     """A clean query-understanding boundary failure."""
+
+
+_CONTEXTUAL_FILLER_PREFIXES = (
+    "bhagavad gita teachings on ",
+    "bhagavad gita teaching on ",
+    "gita teachings on ",
+    "gita teaching on ",
+    "what the bhagavad gita says about ",
+    "what the gita says about ",
+    "bhagavad gita says about ",
+    "gita says about ",
+    "explanation of ",
+)
+
+
+def minimal_contextual_retrieval_query(retrieval_query: str) -> str:
+    """Remove known generic framing without changing the resolved semantic topic."""
+    normalized = retrieval_query.strip()
+    folded = normalized.casefold()
+    for prefix in _CONTEXTUAL_FILLER_PREFIXES:
+        if folded.startswith(prefix) and normalized[len(prefix) :].strip():
+            return normalized[len(prefix) :].strip()
+    return normalized
 
 
 @dataclass(frozen=True)
@@ -68,8 +109,9 @@ class QueryUnderstandingProvider(ABC):
         self,
         original_query: str,
         language_policy: LanguagePolicy,
+        conversation_context: ConversationContext | None = None,
     ) -> QueryUnderstandingResult:
-        """Return a validated retrieval rewrite without answering the query."""
+        """Rewrite the current query; optional conversation context is never evidence."""
 
     @staticmethod
     def validate_response(

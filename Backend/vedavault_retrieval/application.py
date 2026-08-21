@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .answer import AnswerContract, AnswerMode
+from .conversation import ConversationContext
 from .evidence import EvidenceBundle
 from .evidence_hygiene import EvidenceHygienePolicy
 from .grounding import GroundingContext
@@ -112,6 +113,7 @@ class VedaVaultService:
         *,
         mode: AnswerMode,
         generation_configuration: Mapping[str, Any] | None = None,
+        conversation_context: ConversationContext | None = None,
     ) -> VedaVaultResponse:
         """Run one query through the frozen V1 pipeline."""
         if not isinstance(query, str) or not query.strip():
@@ -120,11 +122,22 @@ class VedaVaultService:
             raise ValueError("language_policy must be a LanguagePolicy")
         if not isinstance(mode, AnswerMode):
             raise ValueError("mode must be an AnswerMode")
+        if conversation_context is not None and not isinstance(
+            conversation_context, ConversationContext
+        ):
+            raise ValueError("conversation_context must be a ConversationContext or None")
 
-        understanding = self.query_understanding_provider.understand(
-            query,
-            language_policy,
-        )
+        if conversation_context is None:
+            understanding = self.query_understanding_provider.understand(
+                query,
+                language_policy,
+            )
+        else:
+            understanding = self.query_understanding_provider.understand(
+                query,
+                language_policy,
+                conversation_context=conversation_context,
+            )
         understanding = QueryUnderstandingProvider.validate_response(
             query,
             language_policy,

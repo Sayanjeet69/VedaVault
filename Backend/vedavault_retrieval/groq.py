@@ -10,6 +10,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
 from .answer import AnswerContract, AnswerMode, ScripturalClaim
+from .conversation import ConversationContext
 from .language import LanguagePolicy, SupportedLanguage
 from .llm import GenerationRequest, LLMProvider, LLMProviderError
 from .query_understanding import (
@@ -17,6 +18,7 @@ from .query_understanding import (
     QueryUnderstandingProvider,
     QueryUnderstandingProviderError,
     QueryUnderstandingResult,
+    minimal_contextual_retrieval_query,
 )
 
 
@@ -221,20 +223,28 @@ class GroqQueryUnderstandingProvider(QueryUnderstandingProvider):
         self,
         original_query: str,
         language_policy: LanguagePolicy,
+        conversation_context: ConversationContext | None = None,
     ) -> QueryUnderstandingResult:
         if not isinstance(original_query, str) or not original_query.strip():
             raise ValueError("original_query must be a non-empty string")
         if not isinstance(language_policy, LanguagePolicy):
             raise ValueError("language_policy must be a LanguagePolicy")
-        user_input = json.dumps(
-            {
-                "original_query": original_query,
-                "language_policy": language_policy.to_dict(),
-                "required_output": {
-                    "retrieval_query": "concise semantic retrieval intent",
-                    "clarification_required": False,
-                },
+        if conversation_context is not None and not isinstance(
+            conversation_context, ConversationContext
+        ):
+            raise ValueError("conversation_context must be a ConversationContext or None")
+        query_input = {
+            "original_query": original_query,
+            "language_policy": language_policy.to_dict(),
+            "required_output": {
+                "retrieval_query": "concise semantic retrieval intent",
+                "clarification_required": False,
             },
+        }
+        if conversation_context is not None:
+            query_input["conversation_context"] = conversation_context.to_dict()
+        user_input = json.dumps(
+            query_input,
             ensure_ascii=False,
             sort_keys=True,
         )
@@ -253,6 +263,8 @@ class GroqQueryUnderstandingProvider(QueryUnderstandingProvider):
             clarification_required = value["clarification_required"]
             if not isinstance(retrieval_query, str) or not retrieval_query.strip():
                 raise ValueError("retrieval_query must be a non-empty string")
+            if conversation_context is not None:
+                retrieval_query = minimal_contextual_retrieval_query(retrieval_query)
             if not isinstance(clarification_required, bool):
                 raise ValueError("clarification_required must be boolean")
             result = QueryUnderstandingResult(

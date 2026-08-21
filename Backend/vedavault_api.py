@@ -14,12 +14,15 @@ from pydantic import BaseModel
 from vedavault_retrieval import (
     AnswerMode,
     ClarificationRequiredError,
+    ConversationContext,
+    ConversationStore,
     EvidenceHygieneError,
     GroqClient,
     GroqLLMProvider,
     GroqQueryUnderstandingProvider,
     IndexCompatibilityError,
     IndexManifestError,
+    InMemoryConversationStore,
     LLMProviderError,
     LanguagePolicy,
     LocalVectorStore,
@@ -52,9 +55,10 @@ V1_LANGUAGES = frozenset(
 
 class AnswerRequest(BaseModel):
     query: str
-    input_language: SupportedLanguage = SupportedLanguage.ENGLISH
+    input_language: SupportedLanguage | None = None
     response_language: SupportedLanguage | None = None
     mode: AnswerMode = AnswerMode.TEXTUAL
+    session_id: str | None = None
 
 
 class ScripturalTeachingResponse(BaseModel):
@@ -63,6 +67,7 @@ class ScripturalTeachingResponse(BaseModel):
 
 
 class AnswerResponse(BaseModel):
+    session_id: str
     query: str
     retrieval_query: str
     response_language: SupportedLanguage
@@ -103,6 +108,12 @@ def get_vedavault_service() -> VedaVaultService:
     return create_vedavault_service()
 
 
+@lru_cache(maxsize=1)
+def get_conversation_store() -> InMemoryConversationStore:
+    """Return one process-local, thread-safe conversation store."""
+    return InMemoryConversationStore()
+
+
 def _cors_origins() -> tuple[str, ...]:
     configured = os.environ.get("VEDAVAULT_CORS_ORIGINS")
     if configured is None:
@@ -127,9 +138,10 @@ def _is_rate_limit_error(error: Exception) -> bool:
     return "http 429" in normalized or "rate limit" in normalized or "rate_limit" in normalized
 
 
-def _serialize_response(response: VedaVaultResponse) -> AnswerResponse:
+def _serialize_response(response: VedaVaultResponse, session_id: str) -> AnswerResponse:
     answer = response.answer
     return AnswerResponse(
+        session_id=session_id,
         query=response.original_query,
         retrieval_query=response.retrieval_query,
         response_language=response.language_policy.effective_primary_response_language,
@@ -150,13 +162,25 @@ def _serialize_response(response: VedaVaultResponse) -> AnswerResponse:
     )
 
 
+def _assistant_history_text(response: VedaVaultResponse) -> str:
+    answer = response.answer
+    parts = [claim.statement for claim in answer.scriptural_claims]
+    parts.extend(
+        value
+        for value in (answer.interpretation, answer.application)
+        if value is not None
+    )
+    parts.extend(f"Limitation: {value}" for value in answer.limitations)
+    return "\n".join(parts) or "No answer text was returned."
+
+
 def create_app() -> FastAPI:
     api = FastAPI(title="VedaVault API", version="1.0.0")
     api.add_middleware(
         CORSMiddleware,
         allow_origins=list(_cors_origins()),
         allow_credentials=False,
-        allow_methods=("GET", "POST"),
+        allow_methods=("GET", "POST", "DELETE"),
         allow_headers=("Content-Type",),
     )
 
@@ -229,26 +253,68 @@ def create_app() -> FastAPI:
     def answer(
         payload: AnswerRequest,
         service: VedaVaultService = Depends(get_vedavault_service),
+        conversation_store: ConversationStore = Depends(get_conversation_store),
     ) -> AnswerResponse:
         if not payload.query.strip():
             raise HTTPException(status_code=400, detail="query must be a non-empty string")
-        if payload.input_language not in V1_LANGUAGES:
+        if (
+            payload.input_language is not None
+            and payload.input_language not in V1_LANGUAGES
+        ):
             raise HTTPException(status_code=400, detail="unsupported V1 input language")
         if (
             payload.response_language is not None
             and payload.response_language not in V1_LANGUAGES
         ):
             raise HTTPException(status_code=400, detail="unsupported V1 response language")
+        if payload.session_id is not None and not payload.session_id.strip():
+            raise HTTPException(status_code=400, detail="session_id must be non-empty")
+
+        if payload.session_id is None:
+            conversation_context = ConversationContext()
+        else:
+            session = conversation_store.get_session(payload.session_id)
+            if session is None:
+                raise HTTPException(status_code=404, detail="unknown session_id")
+            conversation_context = session.context
+
         language_policy = LanguagePolicy(
-            input_languages=(payload.input_language,),
+            input_languages=(
+                (payload.input_language,)
+                if payload.input_language is not None
+                else ()
+            ),
+            conversation_language=conversation_context.latest_response_language,
             requested_response_language=payload.response_language,
         )
         response = service.answer(
             payload.query,
             language_policy,
             mode=payload.mode,
+            conversation_context=conversation_context,
         )
-        return _serialize_response(response)
+        session_id = payload.session_id
+        if session_id is None:
+            session_id = conversation_store.create_session().session_id
+        try:
+            conversation_store.append_exchange(
+                session_id,
+                payload.query,
+                _assistant_history_text(response),
+                response.language_policy.effective_primary_response_language,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="unknown session_id") from exc
+        return _serialize_response(response, session_id)
+
+    @api.delete("/sessions/{session_id}")
+    def delete_session(
+        session_id: str,
+        conversation_store: ConversationStore = Depends(get_conversation_store),
+    ) -> dict[str, str]:
+        if not conversation_store.delete_session(session_id):
+            raise HTTPException(status_code=404, detail="unknown session_id")
+        return {"status": "deleted", "session_id": session_id}
 
     return api
 

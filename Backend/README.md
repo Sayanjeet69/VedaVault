@@ -72,33 +72,43 @@ raises `ClarificationRequiredError` before retrieval or generation. The manual
 `Scripts/vedavault_chat_smoke.py` entry point runs one explicitly invoked live
 query; automated tests never invoke it.
 
-## HTTP API
+## HTTP API and conversation sessions
 
-The API is a thin adapter over the frozen RAG V1 pipeline:
+The API is a thin adapter over frozen RAG V1 with process-local continuity:
 
-    VedaVaultService
-           ↓
-        HTTP API
-           ↓
-    future web frontend
+    browser / future frontend
+              ↓ session_id
+           HTTP API
+              ↓
+    bounded in-memory conversation context
+              ↓ context for query understanding only
+       fresh retrieval every turn
+              ↓
+       grounded generation
 
 `Backend/vedavault_api.py` exposes:
 
-- `GET /health`: deterministic process health metadata. It does not construct
-  the retrieval service or call Groq.
+- `GET /health`: deterministic process health metadata. It constructs neither
+  the retrieval service nor a conversation session and never calls Groq.
 - `POST /answer`: validates a request, creates the existing `LanguagePolicy`,
-  calls `VedaVaultService.answer(...)`, and returns compact frontend-safe JSON.
+  supplies bounded context to query understanding, calls
+  `VedaVaultService.answer(...)`, and returns compact frontend-safe JSON.
+- `DELETE /sessions/{session_id}`: deletes one process-local session. Unknown
+  explicit IDs return HTTP 404 and are never silently recreated.
 
-The answer request requires `query`. `input_language` defaults to `en`,
-`response_language` defaults to the resolved input language, and `mode` defaults
-to `textual`. Public V1 language codes are `en`, `hi`, `bn`, and `sa`. Answer
-modes are `textual`, `philosophical`, and `application`.
+The answer request requires `query` and accepts an optional `session_id`.
+Omitting `session_id` creates a UUID4 session and returns its ID. Omitting
+`input_language` allows the previous resolved response language to provide
+conversation continuity, with English as the fallback for a new session.
+`response_language` remains the authoritative explicit override, and `mode`
+defaults to `textual`. Public V1 language codes are `en`, `hi`, `bn`, and `sa`.
+Answer modes are `textual`, `philosophical`, and `application`.
 
-The response contains the original query, retrieval rewrite, resolved response
-language, mode, evidence sufficiency, scriptural teaching and citations,
-interpretation, application, limitations, cited verse IDs, and ranked retrieved
-verse IDs. It never returns prompts, raw provider messages, authorization data,
-or the Groq API key.
+The response contains `session_id`, the original query, retrieval rewrite,
+resolved response language, mode, evidence sufficiency, scriptural teaching and
+citations, interpretation, application, limitations, cited verse IDs, and
+ranked retrieved verse IDs. It never returns prompts, raw provider messages,
+authorization data, or the Groq API key.
 
 Runtime configuration:
 
@@ -112,6 +122,22 @@ first `/answer` request and cached once per API process. `/health` stays cheap.
 Clarification requests return HTTP 409, identifiable upstream rate limits return
 429, other provider failures return 502, unavailable local evidence/services
 return 503, and unexpected failures return generic 500 JSON without internals.
+
+Conversation V1 retains at most eight recent turns (four successful exchanges)
+per session. The thread-safe store is memory-only and process-local: restarting
+the server clears every session. There is no database, authentication,
+persistent memory, cross-device sync, or LLM-generated summary. Only bounded
+user text, compact assistant prose, and the resolved response language are
+stored. Raw prompts, evidence text, citations, provenance, and provider payloads
+are not stored.
+V1 uses bounded turns plus explicit deletion rather than a TTL or background
+session-expiry service.
+
+Conversation history is context, never scripture evidence. It may help query
+understanding resolve a short follow-up into a standalone retrieval query, but
+every turn performs fresh retrieval. Previous assistant claims, citations, and
+retrieved passages are never inserted into the new `GroundingContext`. Failed
+or clarification-required requests do not append a successful exchange.
 
 Install the API runtime and offline test-client dependencies explicitly (the
 repository does not install them automatically):
@@ -146,8 +172,14 @@ Invoke-RestMethod -Method Post `
     -Body $body
 ```
 
-The API adds no session state, persistence, authentication, streaming,
-frontend, or deployment layer. RAG V1 remains unchanged underneath it.
+Reuse the returned `session_id` in the next `/answer` body. Reset it with:
+
+```text
+DELETE http://127.0.0.1:8000/sessions/{session_id}
+```
+
+The API adds no persistent state, authentication, streaming, frontend, or
+deployment layer. RAG grounding remains unchanged underneath it.
 
 ## Multilingual retrieval benchmark
 
